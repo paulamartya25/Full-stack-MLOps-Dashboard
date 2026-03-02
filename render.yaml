@@ -17,5 +17,6 @@ services:
     startCommand: npx serve -s frontend/dist -l $PORT
     envVars:
       - key: VITE_API_URL
+        value: https://factory-dashboard-api.onrender.com
         scope: build
     autoDeploy: true
