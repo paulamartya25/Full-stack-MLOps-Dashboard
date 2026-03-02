@@ -4,13 +4,14 @@ services:
     runtime: python
     pythonVersion: 3.9
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+    healthCheckInterval: 10
     autoDeploy: true
 
   - type: web
     name: factory-dashboard-web
     runtime: node
-    buildCommand: "cd frontend && npm install && npm run build"
-    startCommand: "npx serve -s frontend/dist -l $PORT"
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: npx serve -s frontend/dist -l $PORT
     autoDeploy: true
