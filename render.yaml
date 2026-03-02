@@ -9,15 +9,13 @@ services:
     healthCheckPath: /
     autoDeploy: true
 
-  # Frontend Static Site
-  - type: static_site
+  # Frontend Web Service
+  - type: web
     name: factory-dashboard-web
+    runtime: node
     buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
+    startCommand: npx serve -s frontend/dist -l $PORT
     envVars:
       - key: VITE_API_URL
         scope: build
     autoDeploy: true
-    routes:
-      - path: /*
-        destination: /index.html
