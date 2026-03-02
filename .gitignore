@@ -1,0 +1,11 @@
+# Node modules
+node_modules/
+dist/
+
+# Python environments
+venv/
+__pycache__/
+*.pyc
+
+# Optional: Ignore the database so evaluators start fresh, or leave it out if you want them to see your test data
+# factory.db
