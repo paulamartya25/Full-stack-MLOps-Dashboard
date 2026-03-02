@@ -1,0 +1,23 @@
+services:
+  # Backend API Service
+  - type: web
+    name: factory-dashboard-api
+    runtime: python
+    pythonVersion: 3.9
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    autoDeploy: true
+
+  # Frontend Static Site
+  - type: static_site
+    name: factory-dashboard-web
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        scope: build
+    autoDeploy: true
+    routes:
+      - path: /*
+        destination: /index.html

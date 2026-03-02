@@ -9,8 +9,9 @@ function App() {
   // Function to fetch metrics from the FastAPI backend
   const fetchMetrics = () => {
     setRefreshing(true)
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
     // Adding ?t= ensures the browser doesn't show "old" cached data
-    axios.get(`http://127.0.0.1:8000/metrics/?t=${Date.now()}`)
+    axios.get(`${apiUrl}/metrics/?t=${Date.now()}`)
       .then(response => {
         setData(response.data)
         setLoading(false)
@@ -41,10 +42,11 @@ function App() {
 
   // 2. Error State: Shows a message if the backend is off instead of a blank screen
   if (!data || !data.factory || !data.workers) {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-center p-6">
         <h2 className="text-2xl font-bold text-red-600 mb-2">Data Unavailable</h2>
-        <p className="text-gray-600 mb-4">Check if your FastAPI server is running at http://127.0.0.1:8000</p>
+        <p className="text-gray-600 mb-4">Check if your FastAPI server is running at {apiUrl}</p>
         <button onClick={fetchMetrics} className="bg-blue-600 text-white px-6 py-2 rounded shadow">Retry Connection</button>
       </div>
     )
