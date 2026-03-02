@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List
+import os
 
 app = FastAPI(title="Factory Dashboard API")
 
@@ -52,6 +54,11 @@ async def get_metrics():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
+
+# Serve static frontend files
+static_path = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_path):
+    app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
