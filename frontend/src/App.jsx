@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
+import api from './api'
+import WorkerEvents from './WorkerEvents'
 
 function App() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [currentPage, setCurrentPage] = useState('dashboard') // 'dashboard' or 'events'
+  const [filterType, setFilterType] = useState('all') // 'all', 'worker', 'workstation'
+  const [selectedId, setSelectedId] = useState(null)
 
   // Function to fetch metrics from the FastAPI backend
   const fetchMetrics = () => {
     setRefreshing(true)
-    // Use relative path since frontend and backend are served from same domain
-    axios.get(`/metrics/?t=${Date.now()}`)
+    // Use api configuration - handles both local proxy and production URLs
+    api.get(`/metrics?t=${Date.now()}`)
       .then(response => {
         setData(response.data)
         setLoading(false)
@@ -29,6 +33,23 @@ function App() {
     const interval = setInterval(fetchMetrics, 10000) 
     return () => clearInterval(interval)
   }, [])
+
+  // Filter data based on selected filter
+  const getFilteredWorkers = () => {
+    if (!data) return []
+    if (filterType === 'worker' && selectedId) {
+      return data.workers.filter(w => w.worker_id === selectedId)
+    }
+    return data.workers
+  }
+
+  const getFilteredWorkstations = () => {
+    if (!data) return []
+    if (filterType === 'workstation' && selectedId) {
+      return data.workstations.filter(s => s.station_id === selectedId)
+    }
+    return data.workstations
+  }
 
   // 1. Loading State: Prevents crashing before data arrives
   if (loading) {
@@ -51,73 +72,222 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 font-sans">
-      <header className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">Worker Productivity Dashboard</h1>
-          <p className="text-slate-500 text-sm">Real-time MLOps Factory Monitoring</p>
-        </div>
-        <button 
-          onClick={fetchMetrics} 
-          disabled={refreshing}
-          className={`${refreshing ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-6 rounded-lg transition-all shadow-md`}
-        >
-          {refreshing ? 'Refreshing...' : 'Refresh Data'}
-        </button>
-      </header>
-
-      {/* Factory Summary Section */}
-      <section className="mb-10">
-        <h2 className="text-xl font-semibold mb-4 text-slate-700">Factory Summary</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
-            <p className="text-xs font-bold text-slate-400 uppercase">Total Productive Time</p>
-            <p className="text-3xl font-black text-slate-800">{data.factory.total_productive_time} <span className="text-lg font-normal">sec</span></p>
+    <>
+      {/* Navigation */}
+      <nav className="bg-slate-900 text-white p-4 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <h1 className="text-xl font-bold">Factory Dashboard</h1>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setCurrentPage('dashboard')}
+              className={`px-4 py-2 rounded transition ${
+                currentPage === 'dashboard'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+              }`}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => setCurrentPage('events')}
+              className={`px-4 py-2 rounded transition ${
+                currentPage === 'events'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+              }`}
+            >
+              Post Event
+            </button>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
-            <p className="text-xs font-bold text-slate-400 uppercase">Total Units Produced</p>
-            <p className="text-3xl font-black text-slate-800">{data.factory.total_production_count}</p>
-          </div>
         </div>
-      </section>
+      </nav>
 
-      {/* Individual Worker Cards */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4 text-slate-700">Worker Metrics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {data.workers.map((worker) => (
-            <div key={worker.worker_id} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b pb-2">Worker {worker.worker_id}</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Active Time:</span>
-                  <span className="font-bold">{worker.active_time}s</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Units Produced:</span>
-                  <span className="font-bold">{worker.units_produced}</span>
-                </div>
-                <div className="mt-4 pt-4 border-t">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-slate-500 uppercase">Utilization:</span>
-                    <span className={`text-lg font-black ${worker.utilization > 50 ? 'text-green-600' : 'text-slate-400'}`}>
-                      {worker.utilization}%
-                    </span>
-                  </div>
-                  {/* Progress Bar Visualization */}
-                  <div className="w-full bg-slate-100 rounded-full h-2.5">
-                    <div 
-                      className="bg-blue-600 h-2.5 rounded-full transition-all duration-1000" 
-                      style={{ width: `${worker.utilization}%` }}
-                    ></div>
-                  </div>
-                </div>
+      {/* Page Content */}
+      {currentPage === 'dashboard' ? (
+        <div className="min-h-screen bg-gray-50 p-8 font-sans">
+          <header className="mb-8 flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-extrabold text-slate-900">Worker Productivity Dashboard</h1>
+              <p className="text-slate-500 text-sm">Real-time MLOps Factory Monitoring</p>
+            </div>
+            <button 
+              onClick={fetchMetrics} 
+              disabled={refreshing}
+              className={`${refreshing ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-6 rounded-lg transition-all shadow-md`}
+            >
+              {refreshing ? 'Refreshing...' : 'Refresh Data'}
+            </button>
+          </header>
+
+          {/* Factory Summary Section */}
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-4 text-slate-700">Factory Summary</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
+                <p className="text-xs font-bold text-slate-400 uppercase">Total Productive Time</p>
+                <p className="text-3xl font-black text-slate-800">{data.factory.total_productive_time} <span className="text-lg font-normal">sec</span></p>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+                <p className="text-xs font-bold text-slate-400 uppercase">Total Units Produced</p>
+                <p className="text-3xl font-black text-slate-800">{data.factory.total_production_count}</p>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
+                <p className="text-xs font-bold text-slate-400 uppercase">Avg Production Rate</p>
+                <p className="text-3xl font-black text-slate-800">{data.factory.average_production_rate} <span className="text-lg font-normal">units</span></p>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-orange-500">
+                <p className="text-xs font-bold text-slate-400 uppercase">Avg Utilization</p>
+                <p className="text-3xl font-black text-slate-800">{data.factory.average_utilization}%</p>
               </div>
             </div>
-          ))}
+          </section>
+
+          {/* Filter Controls */}
+          <section className="mb-8 bg-white p-6 rounded-xl shadow-sm">
+            <h3 className="text-lg font-semibold mb-4 text-slate-700">Filter Data</h3>
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2">
+                <label className="font-medium text-slate-600">View:</label>
+                <select 
+                  value={filterType} 
+                  onChange={(e) => {
+                    setFilterType(e.target.value)
+                    setSelectedId(null)
+                  }}
+                  className="border border-slate-300 rounded px-4 py-2 bg-white"
+                >
+                  <option value="all">All Data</option>
+                  <option value="worker">Specific Worker</option>
+                  <option value="workstation">Specific Workstation</option>
+                </select>
+              </div>
+              
+              {filterType === 'worker' && (
+                <div className="flex items-center gap-2">
+                  <label className="font-medium text-slate-600">Worker:</label>
+                  <select 
+                    value={selectedId || ''} 
+                    onChange={(e) => setSelectedId(parseInt(e.target.value) || null)}
+                    className="border border-slate-300 rounded px-4 py-2 bg-white"
+                  >
+                    <option value="">Select Worker...</option>
+                    {data.workers.map(w => (
+                      <option key={w.worker_id} value={w.worker_id}>
+                        {w.name} (Worker {w.worker_id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              {filterType === 'workstation' && (
+                <div className="flex items-center gap-2">
+                  <label className="font-medium text-slate-600">Workstation:</label>
+                  <select 
+                    value={selectedId || ''} 
+                    onChange={(e) => setSelectedId(parseInt(e.target.value) || null)}
+                    className="border border-slate-300 rounded px-4 py-2 bg-white"
+                  >
+                    <option value="">Select Workstation...</option>
+                    {data.workstations.map(s => (
+                      <option key={s.station_id} value={s.station_id}>
+                        {s.name} (Station {s.station_id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Individual Worker Cards */}
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-4 text-slate-700">Worker Metrics</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {getFilteredWorkers().map((worker) => (
+                <div key={worker.worker_id} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                  <h3 className="text-lg font-bold text-slate-800 mb-1">{worker.name}</h3>
+                  <p className="text-xs text-slate-500 mb-4">Worker {worker.worker_id}</p>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Active Time:</span>
+                      <span className="font-bold">{worker.active_time}s</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Idle Time:</span>
+                      <span className="font-bold">{worker.idle_time}s</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Units Produced:</span>
+                      <span className="font-bold">{worker.units_produced}</span>
+                    </div>
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-slate-500 uppercase">Utilization:</span>
+                        <span className={`text-lg font-black ${worker.utilization > 50 ? 'text-green-600' : 'text-slate-400'}`}>
+                          {worker.utilization}%
+                        </span>
+                      </div>
+                      {/* Progress Bar Visualization */}
+                      <div className="w-full bg-slate-100 rounded-full h-2.5">
+                        <div 
+                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-1000" 
+                          style={{ width: `${worker.utilization}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Workstations Section */}
+          <section>
+            <h2 className="text-xl font-semibold mb-4 text-slate-700">Workstation Metrics</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {getFilteredWorkstations().map((station) => (
+                <div key={station.station_id} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border-l-4 border-indigo-500">
+                  <h3 className="text-lg font-bold text-slate-800 mb-1">{station.name}</h3>
+                  <p className="text-xs text-slate-500 mb-4">Station {station.station_id}</p>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Occupancy Time:</span>
+                      <span className="font-bold">{station.occupancy_time}s</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Units Produced:</span>
+                      <span className="font-bold">{station.units_produced}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Throughput Rate:</span>
+                      <span className="font-bold">{station.throughput_rate} u/h</span>
+                    </div>
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-slate-500 uppercase">Utilization:</span>
+                        <span className={`text-lg font-black ${station.utilization > 50 ? 'text-green-600' : 'text-slate-400'}`}>
+                          {station.utilization}%
+                        </span>
+                      </div>
+                      {/* Progress Bar Visualization */}
+                      <div className="w-full bg-slate-100 rounded-full h-2.5">
+                        <div 
+                          className="bg-indigo-600 h-2.5 rounded-full transition-all duration-1000" 
+                          style={{ width: `${station.utilization}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
-      </section>
-    </div>
+      ) : (
+        <WorkerEvents />
+      )}
+    </>
   )
 }
 

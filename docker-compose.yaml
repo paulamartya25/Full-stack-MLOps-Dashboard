@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # Backend Service - FastAPI
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    container_name: factory-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - factory-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Service - React + Vite
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+      target: development
+    container_name: factory-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    command: npm run dev -- --host 0.0.0.0
+    networks:
+      - factory-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Production Frontend Build (optional)
+  frontend-prod:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+      target: production
+    container_name: factory-frontend-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    networks:
+      - factory-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - prod
+    command: npm run preview -- --host 0.0.0.0 --port 3000
+
+  # Optional: SQLite Database (for future persistence)
+  # db:
+  #   image: sqlite
+  #   container_name: factory-db
+  #   volumes:
+  #     - ./data:/data
+  #   networks:
+  #     - factory-network
+
+networks:
+  factory-network:
+    driver: bridge
+
+volumes:
+  backend-volume:
+  frontend-volume:
+
+# Usage:
+# Development: docker-compose up
+# Production:  docker-compose --profile prod up
+# Logs:        docker-compose logs -f backend
+# Stop:        docker-compose down

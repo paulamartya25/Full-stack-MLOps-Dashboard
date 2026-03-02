@@ -1,0 +1,62 @@
+# Dockerfile.frontend - Multi-stage build for React + Vite
+
+# Stage 1: Development
+FROM node:22-slim AS development
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json .
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 5173
+
+# Development server with hot reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+# Stage 2: Build
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json .
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build application
+RUN npm run build
+
+# Stage 3: Production
+FROM node:22-slim AS production
+
+WORKDIR /app
+
+# Install serve to run the built application
+RUN npm install -g serve@latest
+
+# Copy built application from builder
+COPY --from=builder /app/dist ./dist
+
+# Copy configuration files
+COPY package.json .
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3000 || exit 1
+
+# Serve the built application
+CMD ["serve", "-s", "dist", "-l", "3000"]
