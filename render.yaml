@@ -1,22 +1,16 @@
 services:
-  # Backend API Service
   - type: web
     name: factory-dashboard-api
     runtime: python
     pythonVersion: 3.9
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /
+    startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
     autoDeploy: true
 
-  # Frontend Web Service
   - type: web
     name: factory-dashboard-web
     runtime: node
-    buildCommand: cd frontend && npm install && npm run build
-    startCommand: npx serve -s frontend/dist -l $PORT
-    envVars:
-      - key: VITE_API_URL
-        value: https://factory-dashboard-api.onrender.com
-        scope: build
+    buildCommand: "cd frontend && npm install && npm run build"
+    startCommand: "npx serve -s frontend/dist -l $PORT"
     autoDeploy: true

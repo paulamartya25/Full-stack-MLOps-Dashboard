@@ -9,7 +9,11 @@ function App() {
   // Function to fetch metrics from the FastAPI backend
   const fetchMetrics = () => {
     setRefreshing(true)
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    // Build API URL: use env var if set, otherwise infer from domain
+    const apiUrl = import.meta.env.VITE_API_URL || 
+                   (window.location.hostname.includes('onrender.com') 
+                     ? 'https://factory-dashboard-api.onrender.com'
+                     : 'http://localhost:8000')
     // Adding ?t= ensures the browser doesn't show "old" cached data
     axios.get(`${apiUrl}/metrics/?t=${Date.now()}`)
       .then(response => {
@@ -42,7 +46,10 @@ function App() {
 
   // 2. Error State: Shows a message if the backend is off instead of a blank screen
   if (!data || !data.factory || !data.workers) {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    const apiUrl = import.meta.env.VITE_API_URL || 
+                   (window.location.hostname.includes('onrender.com') 
+                     ? 'https://factory-dashboard-api.onrender.com'
+                     : 'http://localhost:8000')
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-center p-6">
         <h2 className="text-2xl font-bold text-red-600 mb-2">Data Unavailable</h2>
