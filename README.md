@@ -1,6 +1,6 @@
 # Factory Dashboard
 ![WhatsApp Image 2026-04-13 at 10 16 47](https://github.com/user-attachments/assets/1ad584e3-8ed9-430f-b642-20a3a4068f16)
-![Uploading WhatsApp Image 2026-04-13 at 10.17.31.jpeg…]()
+
 ![WhatsApp Image 2026-04-13 at 10 18 06](https://github.com/user-attachments/assets/86f9c23d-e299-43b1-b063-48586af83761)
 
 
